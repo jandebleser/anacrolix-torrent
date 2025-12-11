@@ -23,19 +23,19 @@ const lockHandleOperations = false
 func init() {
 	s, ok := os.LookupEnv("TORRENT_STORAGE_DEFAULT_FILE_IO")
 	if !ok {
-		defaultFileIo = func() fileIo {
+		defaultFileIo = func() FileIo {
 			return &mmapFileIo{}
 		}
 		return
 	}
 	switch s {
 	case "mmap":
-		defaultFileIo = func() fileIo {
+		defaultFileIo = func() FileIo {
 			return &mmapFileIo{}
 		}
 	case "classic":
-		defaultFileIo = func() fileIo {
-			return classicFileIo{}
+		defaultFileIo = func() FileIo {
+			return ClassicFileIO{}
 		}
 	default:
 		panic(s)
@@ -226,7 +226,7 @@ func (me *mmapFileIo) addNewMmap(name string, mm mmap.MMap, writable bool, f *os
 	return v
 }
 
-var _ fileIo = (*mmapFileIo)(nil)
+var _ FileIo = (*mmapFileIo)(nil)
 
 type mmapSharedFileHandle struct {
 	f     *fileMmap

@@ -16,7 +16,7 @@ type fileReader interface {
 	io.ReadCloser
 }
 
-type fileIo interface {
+type FileIo interface {
 	openForSharedRead(name string) (sharedFileIf, error)
 	openForRead(name string) (fileReader, error)
 	openForWrite(name string, size int64) (fileWriter, error)

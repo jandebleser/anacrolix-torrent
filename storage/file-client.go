@@ -32,6 +32,7 @@ type NewFileClientOpts struct {
 	PieceCompletion PieceCompletion
 	UsePartFiles    g.Option[bool]
 	Logger          *slog.Logger
+	FileIo          g.Option[FileIo]
 }
 
 // The specific part-files option or the default.
@@ -70,8 +71,8 @@ func (me *fileClientImpl) Close() error {
 	return me.opts.PieceCompletion.Close()
 }
 
-var defaultFileIo = func() fileIo {
-	return classicFileIo{}
+var defaultFileIo = func() FileIo {
+	return ClassicFileIO{}
 }
 
 func (fs *fileClientImpl) OpenTorrent(
@@ -108,7 +109,7 @@ func (fs *fileClientImpl) OpenTorrent(
 		metainfoFileInfos,
 		info.FileSegmentsIndex(),
 		infoHash,
-		defaultFileIo(),
+		fs.opts.FileIo.UnwrapOr(defaultFileIo()),
 		fs,
 	}
 	if t.partFiles() {

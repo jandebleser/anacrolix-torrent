@@ -21,7 +21,7 @@ type fileTorrentImpl struct {
 	metainfoFileInfos []metainfo.FileInfo
 	segmentLocater    segments.Index
 	infoHash          metainfo.Hash
-	io                fileIo
+	io                FileIo
 	// Save memory by pointing to the other data.
 	client *fileClientImpl
 }

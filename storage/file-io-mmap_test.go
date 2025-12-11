@@ -20,9 +20,9 @@ func TestFileIoImplementationsSeekDataDetection(t *testing.T) {
 
 	implementations := []struct {
 		name   string
-		fileIo fileIo
+		fileIo FileIo
 	}{
-		{"classic", classicFileIo{}},
+		{"classic", ClassicFileIO{}},
 		{"mmap", &mmapFileIo{}},
 	}
 

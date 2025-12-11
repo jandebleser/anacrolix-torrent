@@ -6,9 +6,9 @@ import (
 	"os"
 )
 
-type classicFileIo struct{}
+type ClassicFileIO struct{}
 
-func (me classicFileIo) rename(from, to string) error {
+func (me ClassicFileIO) rename(from, to string) error {
 	a := sharedFiles.CloseAll(from)
 	b := sharedFiles.CloseAll(to)
 	c := os.Rename(from, to)
@@ -18,20 +18,20 @@ func (me classicFileIo) rename(from, to string) error {
 	return nil
 }
 
-func (me classicFileIo) flush(name string, offset, nbytes int64) error {
+func (me ClassicFileIO) flush(name string, offset, nbytes int64) error {
 	return fsync(name)
 }
 
-func (me classicFileIo) openForSharedRead(name string) (sharedFileIf, error) {
+func (me ClassicFileIO) openForSharedRead(name string) (sharedFileIf, error) {
 	return sharedFiles.Open(name)
 }
 
-func (me classicFileIo) openForRead(name string) (fileReader, error) {
+func (me ClassicFileIO) openForRead(name string) (fileReader, error) {
 	f, err := os.Open(name)
 	return classicFileReader{f}, err
 }
 
-func (classicFileIo) openForWrite(p string, size int64) (f fileWriter, err error) {
+func (ClassicFileIO) openForWrite(p string, size int64) (f fileWriter, err error) {
 	return openFileExtra(p, os.O_WRONLY)
 }
 
