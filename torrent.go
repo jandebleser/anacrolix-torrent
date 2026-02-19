@@ -2095,9 +2095,11 @@ func (t *Torrent) onWebRtcConn(
 	peerRemoteAddr := netConn.RemoteAddr()
 	//t.logger.Levelf(log.Critical, "onWebRtcConn remote addr: %v", peerRemoteAddr)
 	if t.cl.badPeerAddr(peerRemoteAddr) {
+		t.logger.Levelf(log.Debug, "rejecting webrtc connection from %v: bad peer addr", peerRemoteAddr)
 		return
 	}
 	localAddrIpPort := missinggo.IpPortFromNetAddr(netConn.LocalAddr())
+	t.logger.Levelf(log.Debug, "got webrtc connection from %v to local addr %v", peerRemoteAddr, localAddrIpPort)
 
 	pc, err := t.cl.initiateProtocolHandshakes(
 		context.Background(),
@@ -2691,7 +2693,8 @@ func (t *Torrent) pieceHashed(piece pieceIndex, passed bool, hashIoErr error) {
 					t.slogger().Info(
 						"piece failed hash. banning peer",
 						"piece", piece,
-						"peer", c)
+						"peer", c,
+						"RemoteAddr", c.RemoteAddr)
 					c.providedBadData()
 					// TODO: Check if we now have no available peers for pieces we want.
 				}

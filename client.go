@@ -1374,12 +1374,15 @@ func (cl *Client) badPeerAddr(addr PeerRemoteAddr) bool {
 // Returns whether the IP address and port are considered "bad".
 func (cl *Client) badPeerIPPort(ip net.IP, port int) bool {
 	if port == 0 || ip == nil {
+		cl.logger.Levelf(log.Debug, "bad peer: IP or port: %v:%d", ip, port)
 		return true
 	}
 	if cl.dopplegangerAddr(net.JoinHostPort(ip.String(), strconv.FormatInt(int64(port), 10))) {
+		cl.logger.Levelf(log.Debug, "bad peer: doppleganger: %v:%d", ip, port)
 		return true
 	}
 	if _, ok := cl.ipBlockRange(ip); ok {
+		cl.logger.Levelf(log.Debug, "bad peer: blocked range: %v:%d", ip, port)
 		return true
 	}
 	ipAddr, ok := netip.AddrFromSlice(ip)
@@ -1387,6 +1390,7 @@ func (cl *Client) badPeerIPPort(ip net.IP, port int) bool {
 		panic(ip)
 	}
 	if _, ok := cl.badPeerIPs[ipAddr]; ok {
+		cl.logger.Levelf(log.Debug, "bad peer: in badPeerIPs: %v:%d", ip, port)
 		return true
 	}
 	return false

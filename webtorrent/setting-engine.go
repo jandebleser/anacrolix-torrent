@@ -14,7 +14,7 @@ import (
 var s = webrtc.SettingEngine{
 	// This could probably be done with better integration into anacrolix/log, but I'm not sure if
 	// it's worth the effort.
-	LoggerFactory: discardLoggerFactory{},
+	LoggerFactory: logging.NewDefaultLoggerFactory(),
 }
 
 type discardLoggerFactory struct{}

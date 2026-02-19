@@ -94,8 +94,56 @@ func newPeerConnection(logger log.Logger, iceServers []webrtc.ICEServer) (*wrapp
 	wpc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		logger.Levelf(log.Debug, "webrtc PeerConnection state changed to %v", state)
 		span.AddEvent("connection state changed", trace.WithAttributes(attribute.String("state", state.String())))
+		//logSelectedCandidatePair(logger, pc)
 	})
 	return wpc, nil
+}
+
+func logSelectedCandidatePair(logger log.Logger, pc *webrtc.PeerConnection) {
+	stats := pc.GetStats()
+	candidates := make(map[string]webrtc.ICECandidateStats)
+	var selected *webrtc.ICECandidatePairStats
+
+	for _, stat := range stats {
+		switch s := stat.(type) {
+		case webrtc.ICECandidateStats:
+			candidates[s.ID] = s
+		case webrtc.ICECandidatePairStats:
+			logger.Levelf(log.Debug, "webrtc ICE candidate pair state=%s local=%s remote=%s",
+				s.State,
+				s.LocalCandidateID,
+				s.RemoteCandidateID,
+			)
+
+			if s.Nominated {
+				tmp := s
+				selected = &tmp
+			}
+		}
+	}
+
+	if selected == nil {
+		logger.Levelf(log.Debug, "webrtc selected ICE candidate pair not found")
+		return
+	}
+
+	local, okLocal := candidates[selected.LocalCandidateID]
+	remote, okRemote := candidates[selected.RemoteCandidateID]
+	if !okLocal || !okRemote {
+		logger.Levelf(log.Debug, "webrtc selected ICE candidate pair incomplete local=%t remote=%t", okLocal, okRemote)
+		return
+	}
+
+	logger.Levelf(
+		log.Debug,
+		"webrtc selected ICE candidate pair local=%s:%d/%s remote=%s:%d/%s",
+		local.IP,
+		local.Port,
+		local.Protocol,
+		remote.IP,
+		remote.Port,
+		remote.Protocol,
+	)
 }
 
 func setAndGatherLocalDescription(peerConnection *wrappedPeerConnection, sdp webrtc.SessionDescription) (_ webrtc.SessionDescription, err error) {
