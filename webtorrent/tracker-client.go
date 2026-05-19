@@ -139,6 +139,15 @@ func (tc *TrackerClient) doWebsocket() error {
 	close(closeChan)
 	tc.mu.Lock()
 	c.Close()
+	// Clear wsConn so any concurrent writeMessage callers waiting on
+	// `tc.cond` (or that arrive before the next reconnect) block until a
+	// fresh connection is established, instead of trying to write to the
+	// just-closed conn and surfacing "use of closed network connection".
+	// We only clear it if it's still the conn we just closed — Close()
+	// could have raced with a successful reconnect.
+	if tc.wsConn == c {
+		tc.wsConn = nil
+	}
 	tc.mu.Unlock()
 	return err
 }
@@ -165,7 +174,12 @@ func (tc *TrackerClient) run() error {
 		}
 		tc.mu.Unlock()
 		tc.Logger.WithDefaultLevel(log.Debug).Printf("websocket instance ended: %v", err)
-		time.Sleep(time.Minute)
+		// Reduced from 1m to 5s: a 60-second cold gap between WS retries meant
+		// a torrent whose first announce failed (e.g. transient handshake race)
+		// sat without WebRTC peers for an entire minute, long enough for
+		// upstream dedup checks to mistake the torrent for a stuck share.
+		// 5s is still slow enough to avoid hammering a misbehaving tracker.
+		time.Sleep(5 * time.Second)
 		tc.mu.Lock()
 	}
 	tc.mu.Unlock()
