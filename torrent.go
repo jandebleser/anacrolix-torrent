@@ -2638,6 +2638,11 @@ func (t *Torrent) pieceHashed(piece pieceIndex, passed bool, hashIoErr error) {
 	}()
 
 	if passed {
+		// The peers that contributed chunks to this (now-verified) piece gave us
+		// good data, so clear any accumulated bad-hash strikes against them.
+		for c := range p.dirtiers {
+			c.badHashCount = 0
+		}
 		t.incrementPiecesDirtiedStats(p, (*ConnStats).incrementPiecesDirtiedGood)
 		t.clearPieceTouchers(piece)
 		t.cl.unlock()
@@ -2690,13 +2695,31 @@ func (t *Torrent) pieceHashed(piece pieceIndex, passed bool, hashIoErr error) {
 					// single peer for a piece, and we never progress that piece to completion, we
 					// will never smart-ban them. Discovered in
 					// https://github.com/anacrolix/torrent/issues/715.
-					t.slogger().Info(
-						"piece failed hash. banning peer",
-						"piece", piece,
-						"peer", c,
-						"RemoteAddr", c.RemoteAddr)
-					c.providedBadData()
-					// TODO: Check if we now have no available peers for pieces we want.
+					//
+					// We tolerate a few bad pieces before banning, so a transient bad
+					// piece (e.g. transport corruption) can't permanently ban the only
+					// peer and stall the whole transfer. The count is reset whenever the
+					// peer contributes to a piece that passes (see the passed branch).
+					const badHashBanThreshold = 10
+					c.badHashCount++
+					if c.badHashCount >= badHashBanThreshold {
+						t.slogger().Info(
+							"piece failed hash. banning peer",
+							"piece", piece,
+							"peer", c,
+							"RemoteAddr", c.RemoteAddr,
+							"badHashCount", c.badHashCount)
+						c.providedBadData()
+						// TODO: Check if we now have no available peers for pieces we want.
+					} else {
+						t.slogger().Info(
+							"piece failed hash; not banning peer yet",
+							"piece", piece,
+							"peer", c,
+							"RemoteAddr", c.RemoteAddr,
+							"badHashCount", c.badHashCount,
+							"threshold", badHashBanThreshold)
+					}
 				}
 			}
 		}

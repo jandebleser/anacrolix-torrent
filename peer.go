@@ -40,6 +40,12 @@ type (
 		RemoteAddr              PeerRemoteAddr
 		Discovery               PeerSource
 		trusted                 bool
+		// Consecutive piece-hash failures blamed on this peer that haven't yet
+		// reached the ban threshold. Reset whenever the peer contributes to a
+		// piece that passes its hash check. See Torrent.pieceHashed: we tolerate
+		// a few bad pieces (e.g. transient transport corruption) before banning,
+		// so a single bad piece can't kill a transfer that has only one peer.
+		badHashCount int
 		closed                  chansync.SetOnce
 		closedCtx               context.Context
 		closedCtxCancel         context.CancelFunc
