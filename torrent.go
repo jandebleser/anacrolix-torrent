@@ -17,6 +17,7 @@ import (
 	"math/rand"
 	"net/netip"
 	"net/url"
+	"os"
 	"slices"
 	"strings"
 	"text/tabwriter"
@@ -1354,10 +1355,58 @@ func (t *Torrent) hashPieceWithSpecificHash(piece pieceIndex, h hash.Hash) (
 	}
 	p := t.piece(piece)
 	storagePiece := p.Storage()
+
+	// Debug probe (off unless TERASHARE_PREDICTABLE_HASH_DEBUG is set): tee the
+	// bytes fed to the hasher and validate them against terashare's predictable
+	// test content (each 16-byte block is its global offset in hex). Lets us tell,
+	// when a piece fails its hash, whether the data on disk was wrong (and exactly
+	// where) or correct (pointing at a hashing/verification bug instead).
+	if os.Getenv("TERASHARE_PREDICTABLE_HASH_DEBUG") != "" {
+		cap := &predictableHashCapture{w: w}
+		w = cap
+		var written int64
+		written, err = storagePiece.WriteTo(w)
+		t.countBytesHashed(written)
+		pieceStart := int64(piece) * t.info.PieceLength
+		if bad := validatePredictableBlocks(cap.buf, pieceStart); bad != "" {
+			fmt.Printf("PIECEHASHDBG piece=%d written=%d expectedLen=%d err=%v %s\n",
+				piece, written, p.length(), err, bad)
+		}
+		return
+	}
+
 	var written int64
 	written, err = storagePiece.WriteTo(w)
 	t.countBytesHashed(written)
 	return
+}
+
+// predictableHashCapture tees every byte written to the hasher so the bytes
+// hashed for a piece can be validated against terashare's predictable content.
+type predictableHashCapture struct {
+	w   io.Writer
+	buf []byte
+}
+
+func (c *predictableHashCapture) Write(p []byte) (int, error) {
+	c.buf = append(c.buf, p...)
+	return c.w.Write(p)
+}
+
+// validatePredictableBlocks checks buf against terashare's predictable content:
+// each 16-byte block must equal its own global offset rendered as 16 hex chars.
+// Returns "" if all blocks match, else a description of the first bad block,
+// pinpointing a hole (zeros), wrong bytes, or misaligned/duplicated data.
+func validatePredictableBlocks(buf []byte, pieceStart int64) string {
+	const block = 16
+	for off := 0; off+block <= len(buf); off += block {
+		want := fmt.Sprintf("%016x", pieceStart+int64(off))
+		if string(buf[off:off+block]) != want {
+			return fmt.Sprintf("BAD first-bad-block pieceOffset=%d global=%d want %q got %q",
+				off, pieceStart+int64(off), want, string(buf[off:off+block]))
+		}
+	}
+	return ""
 }
 
 func (t *Torrent) haveAnyPieces() bool {
