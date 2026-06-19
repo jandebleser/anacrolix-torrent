@@ -1217,6 +1217,14 @@ func (cn *PeerConn) drop() {
 	cn.t.dropConnection(cn)
 }
 
+// DropFromCallback drops this connection. It MUST be called from inside an
+// anacrolix callback (e.g. Callbacks.ReadExtendedHandshake), where the client
+// lock is already held. Terashare uses it to reject a peer that fails the
+// restore-paywall token check at handshake time.
+func (cn *PeerConn) DropFromCallback() {
+	cn.drop()
+}
+
 func (cn *PeerConn) providedBadData() {
 	cn.t.cl.banPeerIP(cn.remoteIp())
 }

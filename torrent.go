@@ -122,6 +122,10 @@ type Torrent struct {
 
 	announceList metainfo.AnnounceList
 
+	// Terashare: a paid restore token sent in our outgoing BEP-10 extended
+	// handshake (ts_token). Empty for normal shares. Guarded by the client lock.
+	cloudToken string
+
 	// The info dict. nil if we don't have it (yet).
 	info *metainfo.Info
 	// For scoping routines that depend on needing the info. Saves spinning up lots of helper

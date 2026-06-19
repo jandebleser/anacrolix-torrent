@@ -21,6 +21,12 @@ type (
 		YourIp CompactIp `bencode:"yourip,omitempty"`
 		Ipv4   CompactIp `bencode:"ipv4,omitempty"`
 		Ipv6   net.IP    `bencode:"ipv6,omitempty"`
+		// Terashare extension (non-standard, ignored by other clients): a paid
+		// restore token (HMAC, bound to the info_hash). The seeder of a paywalled
+		// (expired-grace) share verifies it at handshake time and drops peers that
+		// don't present a valid one — enforcing the restore paywall at the
+		// connection level, independent of how the peer was discovered.
+		CloudToken string `bencode:"ts_token,omitempty"`
 	}
 
 	ExtensionName   string

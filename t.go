@@ -279,6 +279,15 @@ func (t *Torrent) ModifyTrackers(announceList [][]string) {
 	t.modifyTrackers(announceList)
 }
 
+// SetCloudToken sets the Terashare restore token sent in our outgoing BEP-10
+// extended handshake (ts_token). It takes effect on connections established
+// after this call; existing connections keep the token they handshook with.
+func (t *Torrent) SetCloudToken(token string) {
+	t.cl.lock()
+	defer t.cl.unlock()
+	t.cloudToken = token
+}
+
 func (t *Torrent) Piece(i pieceIndex) *Piece {
 	return t.piece(i)
 }

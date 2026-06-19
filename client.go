@@ -1277,6 +1277,8 @@ func (pc *PeerConn) sendInitialMessages() {
 					// TODO: We can figure these out specific to the socket used.
 					Ipv4: pp.CompactIp(cl.config.PublicIp4.To4()),
 					Ipv6: cl.config.PublicIp6.To16(),
+					// Terashare restore paywall: present our paid token (if any).
+					CloudToken: t.cloudToken,
 				}
 				msg.M = pc.LocalLtepProtocolMap.toSupportedExtensionDict()
 				return bencode.MustMarshal(msg)
