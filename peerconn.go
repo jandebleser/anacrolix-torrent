@@ -189,11 +189,26 @@ func (cn *PeerConn) isPreferredDirection() bool {
 	return bytes.Compare(cn.PeerID[:], cn.t.cl.peerID[:]) < 0 == cn.outgoing
 }
 
+// isRelayLoopback reports whether the connection's remote address is a loopback
+// address, i.e. it goes through the local UDP-forwarder relay handler rather
+// than directly to the peer. See hasPreferredNetworkOver.
+func (cn *PeerConn) isRelayLoopback() bool {
+	ip := cn.remoteIp()
+	return ip != nil && ip.IsLoopback()
+}
+
 // Returns whether the left connection should be preferred over the right one,
 // considering only their networking properties. If ok is false, we can't
 // decide.
 func (l *PeerConn) hasPreferredNetworkOver(r *PeerConn) bool {
 	var ml multiless.Computation
+	// Terashare: a loopback remote address means this connection runs through the
+	// local UDP-forwarder relay handler (127.0.0.1) — which is the only working
+	// path to a peer whose direct address is NAT/firewall-blocked. Prefer it over
+	// a non-loopback (direct/holepunch) connection so DropDuplicatePeerIds can't
+	// drop the live relay conn in favour of a dead direct one. This is a no-op for
+	// ordinary direct transfers, which never produce a loopback peer connection.
+	ml = ml.Bool(r.isRelayLoopback(), l.isRelayLoopback())
 	ml = ml.Bool(r.isPreferredDirection(), l.isPreferredDirection())
 	ml = ml.Bool(l.utp(), r.utp())
 	ml = ml.Bool(r.ipv6(), l.ipv6())
