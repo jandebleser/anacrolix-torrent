@@ -8,16 +8,17 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/pion/logging"
 	"github.com/pion/webrtc/v4"
 )
 
-// s is the SettingEngine shared by every PeerConnection this package creates. It
-// is configured once from the environment so only processes that opt in are
-// affected: the cloud uploader sets the vars below; desktop clients and the
-// tracker leave them unset and keep pion's defaults (host candidates gathered
-// from every local interface, random ephemeral UDP ports, no NAT1To1).
+// s is the SettingEngine shared by every PeerConnection this package creates.
+// It is configured once from the environment: the cloud uploader sets the
+// NAT1To1/port-range vars below; other processes keep pion's defaults except
+// for the always-on virtual-interface filter (opt out with
+// WEBRTC_GATHER_VIRTUAL_INTERFACES=1).
 var s = newSettingEngine()
 
 func newSettingEngine() webrtc.SettingEngine {
@@ -49,7 +50,38 @@ func newSettingEngine() webrtc.SettingEngine {
 		_ = se.SetEphemeralUDPPortRange(pmin, pmax)
 	}
 
+	// Skip host-side container/VM plumbing when gathering host candidates. Every
+	// gathered candidate is a live socket plus a read goroutine FOR EACH open
+	// peer connection, and a long-running seeder keeps one open offer per
+	// torrent — on a docker/libvirt-heavy host that was 42 candidates per offer,
+	// none of them reachable by a remote peer (they are the host side of a
+	// bridge; inside a container the interface is eth0, which stays eligible).
+	// WEBRTC_GATHER_VIRTUAL_INTERFACES=1 restores pion's gather-everything
+	// default for the exotic setups where a peer really sits behind one of these
+	// (e.g. a browser inside a local NATed VM answering via virbr0).
+	if os.Getenv("WEBRTC_GATHER_VIRTUAL_INTERFACES") != "1" {
+		se.SetInterfaceFilter(func(name string) bool {
+			return !isVirtualInterface(name)
+		})
+	}
+
 	return se
+}
+
+// virtualInterfacePrefixes name interfaces that are the host's side of
+// container/VM networking. Deliberately absent: VPN interfaces (wg*, tun*,
+// tailscale*) — those carry reachable routes.
+var virtualInterfacePrefixes = []string{
+	"docker", "br-", "veth", "virbr", "vnet", "lxc", "lxd", "cni", "flannel", "kube",
+}
+
+func isVirtualInterface(name string) bool {
+	for _, p := range virtualInterfacePrefixes {
+		if strings.HasPrefix(name, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // envPort parses a uint16 UDP port from the named env var, returning 0 when it is
